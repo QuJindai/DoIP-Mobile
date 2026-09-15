@@ -38,6 +38,8 @@ V1 不实现：
 
 ### 3.1 Android 技术栈
 
+- 应用名：`DoIP Mobile`；
+- Android namespace/applicationId：`com.qujindai.doipmobile`；
 - Kotlin；
 - Jetpack Compose + Material 3；
 - Gradle Kotlin DSL；
@@ -45,10 +47,26 @@ V1 不实现：
 - `targetSdk = 36`；
 - Kotlin Coroutines / Flow；
 - Android `ConnectivityManager` / `Network` API；
-- Java/Kotlin 原生 `DatagramSocket`、`Socket`/`SocketChannel`；
+- Java/Kotlin 原生 `DatagramSocket`、`Socket`；
 - 不要求 Root，不修改 Android 内核。
 
-### 3.2 网络原则
+### 3.2 项目结构
+
+V1 只建立一个 Gradle `:app` 模块，避免为首个闭环引入不必要的多模块复杂度。内部通过 package 隔离职责：
+
+```text
+com.qujindai.doipmobile
+├── network
+├── doip
+├── uds
+├── diagnostic
+├── logging
+└── ui
+```
+
+`doip` 与 `uds` 不依赖 Android Framework；Android 相关能力仅存在于 `network`、UI 和平台适配层，因此协议核心可以直接运行 JVM 单元测试。链路稳定后再根据编译边界需要抽成独立 Gradle 模块。
+
+### 3.3 网络原则
 
 DoIP 不能依赖系统默认网络路由，因为手机同时可能存在蜂窝数据和 Wi-Fi。应用必须：
 
@@ -83,7 +101,7 @@ UdsClient             DoipClient
                     Vehicle DoIP
 ```
 
-### 4.1 `network` 模块
+### 4.1 `network` package
 
 职责：
 
@@ -103,7 +121,7 @@ interface VehicleNetworkProvider {
 }
 ```
 
-### 4.2 `doip` 模块
+### 4.2 `doip` package
 
 职责：
 
@@ -131,7 +149,7 @@ interface VehicleNetworkProvider {
 
 协议版本、inverse version、payload length 必须严格校验；未知 payload type 保留原始数据并记录，不导致应用崩溃。
 
-### 4.3 `uds` 模块
+### 4.3 `uds` package
 
 V1 只实现最小只读集合：
 
@@ -151,7 +169,7 @@ V1 预留但不在首个验收开放：
 - `0x31 RoutineControl`；
 - `0x34-0x37` Download/Transfer/Exit。
 
-### 4.4 `app` 模块
+### 4.4 UI
 
 只保留高价值界面：
 
@@ -195,7 +213,7 @@ V1 提供 Advanced Settings：
 - UDP Discovery timeout：默认 2 s；
 - TCP connect timeout：默认 3 s；
 - UDS P2 timeout：默认 2 s；
-- Routing Activation Type：默认值可配置。
+- Routing Activation Type：默认 `0x00`，可配置。
 
 所有 OEM 差异项必须可配置，不在协议核心中写死。
 
@@ -256,8 +274,6 @@ V1 提供 Advanced Settings：
 - 超时；
 - NACK；
 - TCP 中断。
-
-核心协议层不得依赖 Android Framework，以保证大部分测试可以在 JVM CI 中执行。
 
 ### 9.3 Android 仪器测试
 
